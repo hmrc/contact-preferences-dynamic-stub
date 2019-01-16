@@ -6,17 +6,17 @@ import uk.gov.hmrc.{SbtArtifactory, SbtAutoBuildPlugin}
 import play.core.PlayVersion
 import sbt.Tests.{Group, SubProcess}
 
-val appName = "vat-subscription-dynamic-stub"
+val appName = "contact-preferences-dynamic-stub"
 
 val compile: Seq[ModuleID] = Seq(
   "uk.gov.hmrc" %% "play-reactivemongo" % "6.2.0",
   ws,
-  "uk.gov.hmrc" %% "bootstrap-play-25" % "3.2.0",
+  "uk.gov.hmrc" %% "bootstrap-play-25" % "4.7.0",
   "com.github.fge" % "json-schema-validator" % "2.2.6"
 )
 
 def test(scope: String = "test,it"): Seq[ModuleID] = Seq(
-  "uk.gov.hmrc" %% "hmrctest" % "3.0.0" % scope,
+  "uk.gov.hmrc" %% "hmrctest" % "3.4.0-play-25" % scope,
   "org.scalatest" %% "scalatest" % "3.0.0" % scope,
   "org.pegdown" % "pegdown" % "1.6.0" % scope,
   "org.jsoup" % "jsoup" % "1.11.3" % scope,
