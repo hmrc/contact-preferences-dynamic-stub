@@ -18,13 +18,10 @@ package models
 
 import play.api.libs.json.{JsValue, Json, OFormat}
 
-case class DataModel(
-                        _id: String,        // URL of the Request
-                        schemaId: String,   // Name/ID of the Schema to Validate Against
-                        method: String,
-                        status: Int,
-                        response: Option[JsValue]
-                      )
+case class DataModel(_id: DataIdModel,
+                     schemaId: String, // Name/ID of the Schema to Validate Against
+                     status: Int,
+                     response: Option[JsValue])
 
 object DataModel {
   implicit val formats: OFormat[DataModel] = Json.format[DataModel]

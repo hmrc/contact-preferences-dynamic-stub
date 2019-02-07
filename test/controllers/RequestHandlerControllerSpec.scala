@@ -17,160 +17,87 @@
 package controllers
 
 import mocks.{MockDataRepository, MockSchemaValidation}
-import models.{DataModel, SchemaModel}
+import models.HttpMethod._
+import models.{DataIdModel, DataModel}
 import play.api.libs.json.Json
-import play.api.mvc.{Action, Result}
-import play.api.test.{FakeHeaders, FakeRequest}
+import play.api.test.FakeRequest
 import play.mvc.Http.Status
 import testUtils.TestSupport
-
-import scala.concurrent.Future
 
 class RequestHandlerControllerSpec extends TestSupport with MockSchemaValidation with MockDataRepository {
 
   object TestRequestHandlerController extends RequestHandlerController(mockSchemaValidation, mockDataRepository)
 
-  lazy val successModel = DataModel(
-    _id = "test",
-    schemaId = "testID1",
-    method = "GET",
-    status = Status.OK,
-    response = None
-  )
-
-  lazy val successWithBodyModel = DataModel(
-    _id = "test",
+  lazy val successWithBodyModel: String => DataModel = method => DataModel(
+    _id = DataIdModel("test", method),
     schemaId = "testID2",
-    method = "GET",
     status = Status.OK,
     response = Some(Json.parse("""{"something" : "hello"}"""))
   )
 
-  lazy val postSuccessRequestSchema = SchemaModel(
-    _id = "testRequest",
-    url = "someURL",
-    method = "POST",
-    responseSchema = Json.parse("""{"response" : "sup"}"""),
-    requestSchema = Some(Json.parse("""{"request" : "jaffa cakes"}"""))
-  )
-
-  lazy val putSuccessRequestSchema = SchemaModel(
-    _id = "testRequest",
-    url = "someURL",
-    method = "PUT",
-    responseSchema = Json.parse("""{"response" : "sup"}"""),
-    requestSchema = Some(Json.parse("""{"request" : "jaffa cakes"}"""))
-  )
-
   "The getRequestHandler method" should {
 
-    "return the status code specified in the model" in {
-      lazy val result = TestRequestHandlerController.getRequestHandler("/test")(FakeRequest())
-
-      mockFind(List(successModel))
-      status(result) shouldBe Status.OK
-    }
+    lazy val dataModel = successWithBodyModel(GET)
 
     "return the status and body" in {
-      lazy val result = TestRequestHandlerController.getRequestHandler("/test")(FakeRequest())
+      lazy val result = TestRequestHandlerController.getRequestHandler(dataModel._id.url)(FakeRequest())
 
-      mockFind(List(successWithBodyModel))
+      mockFindById(dataModel._id)(Some(dataModel))
       status(result) shouldBe Status.OK
-      await(bodyOf(result)) shouldBe s"${successWithBodyModel.response.get}"
+      await(bodyOf(result)) shouldBe s"${dataModel.response.get}"
     }
 
-    "return a 400 status when the endpoint cannot be found" in {
-      lazy val result = TestRequestHandlerController.getRequestHandler("/test")(FakeRequest())
+    "return a 404 status when the endpoint cannot be found" in {
+      lazy val result = TestRequestHandlerController.getRequestHandler(dataModel._id.url)(FakeRequest())
 
-      mockFind(List())
-      status(result) shouldBe Status.BAD_REQUEST
+      mockFindById(dataModel._id)()
+      status(result) shouldBe Status.NOT_FOUND
     }
   }
 
   "The postRequestHandler method" should {
 
+    lazy val dataModel = successWithBodyModel(POST)
+    lazy val request = FakeRequest().withJsonBody(Json.obj("foo" -> "bar"))
+
     "return the corresponding response of an incoming POST request" in {
-      lazy val result = TestRequestHandlerController.postRequestHandler("/test")(FakeRequest())
 
-      mockFind(List(successWithBodyModel))
-      mockValidateRequestJson(successWithBodyModel.schemaId, postSuccessRequestSchema.requestSchema)(response = true)
+      lazy val result = TestRequestHandlerController.postRequestHandler(dataModel._id.url)(request)
 
-      await(bodyOf(result)) shouldBe s"${successWithBodyModel.response.get}"
+      mockFindById(DataIdModel(dataModel._id.url, POST))(Some(dataModel))
+      mockValidateRequestJson(dataModel.schemaId, request.body.asJson)(success = true)
+
+      await(bodyOf(result)) shouldBe s"${dataModel.response.get}"
     }
 
-    "return a response status when there is no stubbed response body for an incoming POST request" in {
-      lazy val result = TestRequestHandlerController.postRequestHandler("/test")(FakeRequest())
+    "return a 404 response status when there is no stubbed response body for an incoming POST request" in {
+      lazy val result = TestRequestHandlerController.postRequestHandler(dataModel._id.url)(request)
 
-      mockFind(List(successModel))
-      mockValidateRequestJson(successModel.schemaId, postSuccessRequestSchema.requestSchema)(response = true)
-
-      status(result) shouldBe Status.OK
-    }
-
-    "return a 400 status if the request body doesn't validate against the stub" in {
-      lazy val result = TestRequestHandlerController.postRequestHandler("/test")(FakeRequest())
-
-      mockFind(List(successWithBodyModel))
-      mockValidateRequestJson(successWithBodyModel.schemaId, None)(response = false)
-
-      status(result) shouldBe Status.BAD_REQUEST
-      await(bodyOf(result)) shouldBe Json.obj(
-        "code" -> "400",
-        "reason" -> "Request did not validate against schema"
-      ).toString
-    }
-
-    "return a 400 status if the endpoint specified in the POST request can't be found" in {
-      lazy val result = TestRequestHandlerController.postRequestHandler("/test")(FakeRequest())
-
-      mockFind(List())
-
-      status(result) shouldBe Status.BAD_REQUEST
-      await(bodyOf(result)) shouldBe s"Could not find endpoint in Dynamic Stub matching the URI: /"
+      mockFindById(dataModel._id)()
+      status(result) shouldBe Status.NOT_FOUND
     }
   }
 
 
   "The putRequestHandler method" should {
 
+    lazy val dataModel = successWithBodyModel(PUT)
+    lazy val request = FakeRequest().withJsonBody(Json.obj("foo" -> "bar"))
+
     "return the corresponding response of an incoming PUT request" in {
-      lazy val result = TestRequestHandlerController.putRequestHandler("/test")(FakeRequest())
+      lazy val result = TestRequestHandlerController.putRequestHandler(dataModel._id.url)(request)
 
-      mockFind(List(successWithBodyModel))
-      mockValidateRequestJson(successWithBodyModel.schemaId, putSuccessRequestSchema.requestSchema)(response = true)
+      mockFindById(dataModel._id)(Some(dataModel))
+      mockValidateRequestJson(dataModel.schemaId, request.body.asJson)(success = true)
 
-      await(bodyOf(result)) shouldBe s"${successWithBodyModel.response.get}"
+      await(bodyOf(result)) shouldBe s"${dataModel.response.get}"
     }
 
-    "return a response status when there is no stubbed response body for an incoming PUT request" in {
-      lazy val result = TestRequestHandlerController.putRequestHandler("/test")(FakeRequest())
+    "return a 404 response status when there is no stubbed response body for an incoming PUT request" in {
+      lazy val result = TestRequestHandlerController.putRequestHandler(dataModel._id.url)(request)
 
-      mockFind(List(successModel))
-      mockValidateRequestJson(successModel.schemaId, putSuccessRequestSchema.requestSchema)(response = true)
-
-      status(result) shouldBe Status.OK
-    }
-
-    "return a 400 status if the request body doesn't validate against the stub" in {
-      lazy val result = TestRequestHandlerController.putRequestHandler("/test")(FakeRequest())
-
-      mockFind(List(successWithBodyModel))
-      mockValidateRequestJson(successWithBodyModel.schemaId, None)(response = false)
-
-      status(result) shouldBe Status.BAD_REQUEST
-      await(bodyOf(result)) shouldBe Json.obj(
-        "code" -> "400",
-        "reason" -> "Request did not validate against schema"
-      ).toString
-    }
-
-    "return a 400 status if the endpoint specified in the PUT request can't be found" in {
-      lazy val result = TestRequestHandlerController.putRequestHandler("/test")(FakeRequest())
-
-      mockFind(List())
-
-      status(result) shouldBe Status.BAD_REQUEST
-      await(bodyOf(result)) shouldBe s"Could not find endpoint in Dynamic Stub matching the URI: /"
+      mockFindById(dataModel._id)()
+      status(result) shouldBe Status.NOT_FOUND
     }
   }
 
