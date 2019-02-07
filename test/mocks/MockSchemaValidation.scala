@@ -16,9 +16,7 @@
 
 package mocks
 
-import com.github.fge.jsonschema.main.JsonSchema
-import models.SchemaModel
-import org.scalamock.handlers.{CallHandler1, CallHandler2, CallHandler3}
+import org.scalamock.handlers.CallHandler3
 import org.scalamock.scalatest.MockFactory
 import play.api.libs.json.JsValue
 import play.api.mvc.Result
@@ -31,13 +29,6 @@ import scala.concurrent.Future
 trait MockSchemaValidation extends UnitSpec with MockFactory {
 
   val mockSchemaValidation: SchemaValidation = mock[SchemaValidation]
-
-  def mockLoadResponseSchema(schemaId: String)(response: JsonSchema)
-  : CallHandler1[String, Future[JsonSchema]] = {
-    (mockSchemaValidation.loadResponseSchema(_: String))
-      .expects(schemaId)
-      .returns(response)
-  }
 
   def mockValidateResponseJson(schemaId: String, json: Option[JsValue])(success: Boolean)
   : CallHandler3[String, Option[JsValue], Future[Result], Future[Result]] = {

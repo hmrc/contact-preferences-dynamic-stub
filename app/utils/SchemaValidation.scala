@@ -34,8 +34,8 @@ import scala.concurrent.Future
 @Singleton
 class SchemaValidation @Inject()(repository: SchemaRepository) extends MongoSugar {
 
-  private final lazy val jsonMapper = new ObjectMapper()
-  private final lazy val jsonFactory = jsonMapper.getFactory
+  private[utils] final lazy val jsonMapper = new ObjectMapper()
+  private[utils] final lazy val jsonFactory = jsonMapper.getFactory
 
   def validateResponseJson(schemaId: String, json: Option[JsValue])(f: => Future[Result]): Future[Result] = {
     validResponse(schemaId, json).flatMap {
@@ -44,7 +44,21 @@ class SchemaValidation @Inject()(repository: SchemaRepository) extends MongoSuga
     }
   }
 
-  def validResponse(schemaId: String, json: Option[JsValue]): Future[Boolean] = {
+  def validateUrlMatch(schemaId: String, url: String)(f: => Future[Result]): Future[Result] =
+    validateUrl(schemaId, url).flatMap {
+      case Left(err) => Future.successful(err)
+      case Right(_) => f
+    }
+
+
+  def validateRequestJson(schemaId: String, json: Option[JsValue])(f: => Future[Result]): Future[Result] = {
+    findById(repository)(schemaId) { schema =>
+      if (validRequest(schema, json)) f
+      else Future.successful(BadRequest(Json.obj("code" -> "400", "reason" -> "Request did not validate against schema")))
+    }
+  }
+
+  private[utils] def validResponse(schemaId: String, json: Option[JsValue]): Future[Boolean] = {
     json.fold(Future.successful(true)) { response =>
       loadResponseSchema(schemaId).map { schema =>
         val jsonParser = jsonFactory.createParser(response.toString)
@@ -54,7 +68,7 @@ class SchemaValidation @Inject()(repository: SchemaRepository) extends MongoSuga
     }
   }
 
-  def loadResponseSchema(schemaId: String): Future[JsonSchema] = {
+  private[utils] def loadResponseSchema(schemaId: String): Future[JsonSchema] = {
     val schemaMapper = new ObjectMapper()
     val factory = schemaMapper.getFactory
     repository.findById(schemaId).map {
@@ -67,8 +81,7 @@ class SchemaValidation @Inject()(repository: SchemaRepository) extends MongoSuga
     }
   }
 
-
-  def loadRequestSchema(requestSchema: JsValue): JsonSchema = {
+  private[utils] def loadRequestSchema(requestSchema: JsValue): JsonSchema = {
     val schemaMapper = new ObjectMapper()
     val factory = schemaMapper.getFactory
     val schemaParser: JsonParser = factory.createParser(requestSchema.toString)
@@ -76,14 +89,19 @@ class SchemaValidation @Inject()(repository: SchemaRepository) extends MongoSuga
     JsonSchemaFactory.byDefault().getJsonSchema(schemaJson)
   }
 
-  def validateRequestJson(schemaId: String, json: Option[JsValue])(f: => Future[Result]): Future[Result] = {
-    findById(repository)(schemaId) { schema =>
-      if (validRequest(schema, json)) f
-      else Future.successful(BadRequest(Json.obj("code" -> "400", "reason" -> "Request did not validate against schema")))
+  private[utils] def validateUrl(schemaId: String, url: String): Future[Either[Result, Boolean]] =
+    loadUrlRegex(schemaId).map { regex =>
+      if (url.matches(regex)) Right(true)
+      else Left(BadRequest(s"URL $url did not match the Schema Definition Regex $regex"))
     }
-  }
 
-  def validRequest(schema: SchemaModel, json: Option[JsValue]): Boolean = {
+  private[utils] def loadUrlRegex(schemaId: String): Future[String] =
+    repository.findById(schemaId).map {
+      case Some(model) => model.url
+      case _ => throw new Exception("Schema could not be retrieved/found in MongoDB")
+    }
+
+  private[utils] def validRequest(schema: SchemaModel, json: Option[JsValue]): Boolean = {
     schema.requestSchema.fold(true) { jsonSchema =>
       json.fold(true) { response =>
         val jsonParser = jsonFactory.createParser(response.toString)
@@ -93,22 +111,4 @@ class SchemaValidation @Inject()(repository: SchemaRepository) extends MongoSuga
       }
     }
   }
-
-  def loadUrlRegex(schemaId: String): Future[String] =
-    repository.findById(schemaId).map {
-      case Some(model) => model.url
-      case _ => throw new Exception("Schema could not be retrieved/found in MongoDB")
-    }
-
-  def validateUrlMatch(schemaId: String, url: String)(f: => Future[Result]): Future[Result] =
-    validateUrl(schemaId, url).flatMap {
-      case Left(err) => Future.successful(err)
-      case Right(_) => f
-    }
-
-  def validateUrl(schemaId: String, url: String): Future[Either[Result, Boolean]] =
-    loadUrlRegex(schemaId).map { regex =>
-      if (url.matches(regex)) Right(true)
-      else Left(BadRequest(s"URL $url did not match the Schema Definition Regex $regex"))
-    }
 }

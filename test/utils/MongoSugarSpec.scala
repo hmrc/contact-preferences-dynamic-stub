@@ -35,15 +35,6 @@ class MongoSugarSpec extends TestSupport {
   val errorWriteResult = DefaultWriteResult(ok = false, n = 1, writeErrors = Seq(WriteError(1,1,"Error")), None, None, None)
   val testId = "foo"
 
-  case class IsVarargsContaining[T](expected: T) extends ArgumentMatcher[T] {
-
-    override def matches(arg: T): Boolean =
-      arg.isInstanceOf[Seq[T]] && arg.asInstanceOf[Seq[T]].contains(expected)
-
-    override def toString() = s"<vararg list containing element $expected>"
-
-  }
-
   case class TestModel(foo: String)
   object TestModel {
     implicit val fmt: Format[TestModel] = Json.format[TestModel]
