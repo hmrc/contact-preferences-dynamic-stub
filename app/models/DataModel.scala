@@ -16,7 +16,7 @@
 
 package models
 
-import play.api.libs.json.{JsValue, Json, OFormat}
+import play.api.libs.json._
 
 case class DataModel(_id: DataIdModel,
                      schemaId: String, // Name/ID of the Schema to Validate Against

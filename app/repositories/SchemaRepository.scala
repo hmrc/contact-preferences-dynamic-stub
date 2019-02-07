@@ -16,17 +16,18 @@
 
 package repositories
 
-import javax.inject.Singleton
+import javax.inject.{Inject, Singleton}
 import models.SchemaModel
 import play.api.libs.json.Format
-import reactivemongo.api.DB
+import play.modules.reactivemongo.ReactiveMongoComponent
 import uk.gov.hmrc.mongo.ReactiveRepository
 
+
 @Singleton
-class SchemaRepository(implicit mongo: () => DB, manifest: Manifest[SchemaModel])
-  extends ReactiveRepository(
-    collectionName = "schema",
-    mongo,
-    domainFormat = implicitly[Format[SchemaModel]],
-    idFormat = implicitly[Format[String]]
+class SchemaRepository @Inject()(mongoComponent: ReactiveMongoComponent)
+  extends ReactiveRepository[SchemaModel, String](
+    collectionName = "schemas",
+    mongo          = mongoComponent.mongoConnector.db,
+    domainFormat   = SchemaModel.formats,
+    idFormat       = implicitly[Format[String]]
   )
