@@ -14,18 +14,13 @@
  * limitations under the License.
  */
 
-package repositories
+package models
 
-import javax.inject.{Inject, Singleton}
-import models.{DataIdModel, DataModel}
-import play.modules.reactivemongo.ReactiveMongoComponent
-import uk.gov.hmrc.mongo.ReactiveRepository
+import play.api.libs.json.{Json, OFormat}
 
-@Singleton
-class DataRepository @Inject()(mongoComponent: ReactiveMongoComponent)
-  extends ReactiveRepository[DataModel, DataIdModel](
-    collectionName = "data",
-    mongo          = mongoComponent.mongoConnector.db,
-    domainFormat   = DataModel.formats,
-    idFormat       = DataIdModel.formats
-  )
+case class DataIdModel(url: String,
+                       method: String)
+
+object DataIdModel {
+  implicit val formats: OFormat[DataIdModel] = Json.format[DataIdModel]
+}

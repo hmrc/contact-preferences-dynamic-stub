@@ -22,7 +22,8 @@ def test(scope: String = "test,it"): Seq[ModuleID] = Seq(
   "org.jsoup" % "jsoup" % "1.11.3" % scope,
   "com.typesafe.play" %% "play-test" % PlayVersion.current % scope,
   "org.scalatestplus.play" %% "scalatestplus-play" % "2.0.0" % scope,
-  "org.mockito" % "mockito-core" % "2.21.0" % "test"
+  "org.mockito" % "mockito-core" % "2.21.0" % "test",
+  "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % "test"
 )
 
 lazy val appDependencies : Seq[ModuleID] = compile ++ test()

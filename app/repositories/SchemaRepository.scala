@@ -17,30 +17,17 @@
 package repositories
 
 import javax.inject.{Inject, Singleton}
-
 import models.SchemaModel
-import play.modules.reactivemongo.MongoDbConnection
-import reactivemongo.api.commands._
+import play.api.libs.json.Format
+import play.modules.reactivemongo.ReactiveMongoComponent
+import uk.gov.hmrc.mongo.ReactiveRepository
 
-import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class SchemaRepository @Inject()() extends MongoDbConnection {
-
-  lazy val repository = new SchemaRepositoryBase() {
-
-    override def findById(schemaId: String)(implicit ec: ExecutionContext): Future[SchemaModel] =
-      find("_id" -> schemaId).map(_.last)
-
-    override def removeById(schemaId: String)(implicit ec: ExecutionContext): Future[WriteResult] =
-      remove("_id" -> schemaId)
-
-    override def removeAll()(implicit ec: ExecutionContext): Future[WriteResult] =
-      removeAll(WriteConcern.Acknowledged)
-
-    override def addEntry(document: SchemaModel)(implicit ec: ExecutionContext): Future[WriteResult] =
-      insert(document)
-  }
-
-  def apply(): DynamicStubRepository[SchemaModel, String] = repository
-}
+class SchemaRepository @Inject()(mongoComponent: ReactiveMongoComponent)
+  extends ReactiveRepository[SchemaModel, String](
+    collectionName = "schemas",
+    mongo          = mongoComponent.mongoConnector.db,
+    domainFormat   = SchemaModel.formats,
+    idFormat       = implicitly[Format[String]]
+  )

@@ -17,44 +17,29 @@
 package controllers
 
 import javax.inject.{Inject, Singleton}
-
 import models.SchemaModel
 import play.api.libs.json.JsValue
 import play.api.mvc.{Action, AnyContent}
 import repositories.SchemaRepository
 import uk.gov.hmrc.play.bootstrap.controller.BaseController
+import utils.MongoSugar
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
 @Singleton
-class SetupSchemaController @Inject()(schemaRepository: SchemaRepository) extends BaseController {
+class SetupSchemaController @Inject()(schemaRepository: SchemaRepository) extends BaseController with MongoSugar {
 
-  val addSchema: Action[JsValue] = Action.async(parse.json) {
-    implicit request => withJsonBody[SchemaModel](
-      json => {
-        schemaRepository().addEntry(json).map(_.ok match {
-          case true => Ok(s"Successfully added Schema: ${request.body}")
-          case _ => InternalServerError("Could not store data")
-        })
-      }
-    ).recover {
-      case _ => BadRequest("Error Parsing Json SchemaModel")
+  val addSchema: Action[JsValue] = Action.async(parse.json) { implicit request =>
+    withJsonBody[SchemaModel] { json =>
+      insert(schemaRepository)(json)
     }
   }
 
-  val removeSchema: String => Action[AnyContent] = id => Action.async {
-    implicit request =>
-      schemaRepository().removeById(id).map(_.ok match {
-        case true => Ok("Success")
-        case _ => InternalServerError("Could not delete data")
-      })
+  val removeSchema: String => Action[AnyContent] = schemaId => Action.async { implicit request =>
+    remove(schemaRepository)("_id" -> schemaId)
   }
 
-  val removeAll: Action[AnyContent] = Action.async {
-    implicit request =>
-      schemaRepository().removeAll().map(_.ok match {
-        case true => Ok("Removed All Schemas")
-        case _ => InternalServerError("Unexpected Error Clearing MongoDB.")
-      })
+  val removeAllSchemas: Action[AnyContent] = Action.async { implicit request =>
+    removeAll(schemaRepository)
   }
 }
